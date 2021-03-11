@@ -21,7 +21,7 @@ App.use("/users", UserRoutes);
 App.use("/users", UploadRoutes);
 App.use(express.urlencoded({ limit: "20mb" }));
 App.get("/", (req, res) => {
-  res.status(200).send({ message: "iff server" });
+  res.status(200).send({ message: "NotesApp" });
 });
 
 const server = App.listen(Port, (err, successs) => {

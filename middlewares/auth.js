@@ -15,10 +15,6 @@ exports.CheckUserAth = async function (req, res, next) {
       req.body.id = decodedToken.user._id;
       // const todaysdate = new Date();
 
-      await UserSchema.findById(
-        { _id: req.body.id },
-        { useFindAndModify: false }
-      ).then((user) => selDestruct(user, (userid = req.body.id)));
       next();
     }
   });

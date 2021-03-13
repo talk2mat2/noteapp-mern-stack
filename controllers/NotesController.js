@@ -12,6 +12,19 @@ exports.getUserNotes = (req, res) => {
       return res.status(404).json({ message: "no user notes" });
     });
 };
+exports.DeleteNote = (req, res) => {
+  const _id = req.body.noteId;
+
+  NotesModel.findByIdAndDelete(_id)
+    .then((resdata) => {
+      this.getUserNotes(req, res);
+    })
+    .catch((err) => {
+      return res
+        .status(404)
+        .json({ message: "error occured, unable to delete" });
+    });
+};
 
 exports.SaveNotes = async (req, res) => {
   const { rawContent, title, id } = req.body;

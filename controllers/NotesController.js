@@ -47,3 +47,23 @@ exports.SaveNotes = async (req, res) => {
     res.status(501).json({ message: "an error occured,unable to save" });
   }
 };
+
+exports.UpdateNotes = (req, res) => {
+  const { rawContent, title, noteId } = req.body;
+
+  if (!noteId) {
+    return res.status(401).json({ message: "note id not provided" });
+  }
+  // const ownerId = id;
+  NotesModel.findByIdAndUpdate(noteId, { rawContent, title })
+    .then((resdata) => {
+      this.getUserNotes(req, res);
+      console.log("updated");
+    })
+    .catch((err) => {
+      console.log("error occured", err);
+      return res
+        .status(404)
+        .json({ message: "error occured, unable to update" });
+    });
+};

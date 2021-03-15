@@ -67,3 +67,21 @@ exports.UpdateNotes = (req, res) => {
         .json({ message: "error occured, unable to update" });
     });
 };
+
+exports.SearchNotes = (req, res) => {
+  if (!req.query.search) {
+    console.log("empty search");
+    return res.status(200).json({ searchResults: [] });
+  }
+  console.log(req.query.search);
+  NotesModel.find({ title: { $regex: `${req.query.search}`, $options: "i" } })
+    .limit(10)
+    .then((resdata) => {
+      // console.log(resdata);
+      res.status(200).json({ searchResults: resdata });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(200).json({ err });
+    });
+};

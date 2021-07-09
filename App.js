@@ -3,7 +3,7 @@ const App = express();
 const connectDB = require("./db/connection");
 const cors = require("cors");
 const UserRoutes = require("./routes/userroutes");
-const UploadRoutes = require("./routes/UploadRoutes");
+// const UploadRoutes = require("./routes/UploadRoutes");
 const NotesRoutes = require("./routes/NotesRoutes");
 
 const path = require("path");
@@ -19,7 +19,7 @@ App.use(express.json({ extended: false, limit: "20mb" }));
 App.set("views", path.join(__dirname, "views"));
 App.set("view engine", "ejs");
 App.use("/users", UserRoutes);
-App.use("/users", UploadRoutes);
+// App.use("/users", UploadRoutes);
 App.use("/notes", NotesRoutes);
 App.use(express.urlencoded({ limit: "20mb" }));
 App.get("/", (req, res) => {

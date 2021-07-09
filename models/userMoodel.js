@@ -6,8 +6,8 @@ const shortid = require("shortid");
 const UserSchema = new Schema({
   Email: { type: String, required: true, unique: true },
   Password: { type: String, required: true },
+  plans: { type: String, default: "basic" },
 });
-//if the confirm 4 payment, you remove yourself from the board
 
 UserSchema.methods.verifyPassword = async function (Password) {
   const match = await bcrypt.compare(Password, this.Password);

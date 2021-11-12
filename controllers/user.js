@@ -1,13 +1,25 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-
+const axios = require('axios')
 const UserSchema = require("../models/userMoodel");
 
 function validateEmail(email) {
   const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
   return re.test(String(email).toLowerCase());
 }
-
+function getYear(){
+  const d = new Date()
+var amountOfYearsRequired = 1;
+const time=d.setFullYear(d.getFullYear() + amountOfYearsRequired);
+const year= new Date(time)
+return year
+}
+function getDays(days){
+  var d = new Date();
+  const time=d.setDate(d.getDate() + days);
+  const times= new Date(time)
+  return times
+}
 exports.Login = async function (req, res) {
   const Password = req.body.password;
   const Email = req.body.email;
@@ -232,3 +244,70 @@ exports.ConfirmPaymentReceived = async (req, res) => {
 //       res.status(401).send({ err: "an error occured,unable to send" });
 //     });
 // };
+
+exports.handleUpgradePlans=async(req,res)=>{
+  const {plan,plan_date, payment_response} = req.body;
+ 
+  if(!plan || !plan_date){
+    return res.status(501).json({
+message:"plan  or plan method not provided",
+status:false,
+    })
+  }
+  //we validate to allow only three type of plan
+  if(plan!=='Basic'&& plan!=='Premium' &&plan!=='Business'){
+    
+    return res.status(501).json({
+message:"invalid plan selected",
+status:false
+    })
+  }
+ try{
+  const isPaid = await axios.get(
+    `https://api.flutterwave.com/v3/transactions/${payment_response.transaction_id}/verify`,
+    {
+      headers: { Authorization: `Bearer ${process.env.FLUTTER_SECRET_KEY}` },
+    }
+  );
+  if (!isPaid.data.status === "success") {
+    return res
+      .status(501)
+      .json({ message: "payment wasnt successfull, try again",status:false });
+  }
+
+  if (isPaid.data.status === "success") {
+  const expire_date=plan_date==="month"?getDays(30):plan_date==="year"?getYear():""
+  const today=new Date()
+const params={
+plans:plan,
+expire_date,
+purchase_date:today,
+payment_response
+}
+
+
+ UserSchema.findByIdAndUpdate(
+  { _id: req.body.id },
+  {
+    $set: params,
+  },
+  { new: true, useFindAndModify: false }
+)
+  .select("-Password")
+  .then((user) => {
+    return res.status(200).json({
+      userdata: user,
+      status:true
+    });
+  })
+  .catch((err) => {
+    console.log(err);
+    res.status(401).send({ err: "an error occured,unable to send" });
+  });
+  }
+ }
+ catch(err){
+   console.log(err)
+ }
+
+}

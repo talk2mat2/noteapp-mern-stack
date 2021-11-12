@@ -1,5 +1,6 @@
 const { response } = require("express");
 const NotesModel = require("../models/NotesModel");
+const userMoodel= require('../models/userMoodel')
 
 exports.getUserNotes = (req, res) => {
   const ownerId = req.body.id;
@@ -36,7 +37,35 @@ exports.SaveNotes = async (req, res) => {
   if (!rawContent) {
     return res.status(501).json({ message: "body can not be empty" });
   }
+//Basic plan can save only 5 notes
+//premium can save 20  notes,
+//Business plan can save 60 notes
+const checkOwnersPlan= await userMoodel.findById(ownerId)
+if(checkOwnersPlan){
+  console.log(checkOwnersPlan.plans)
 
+  if(checkOwnersPlan.plans==='Basic'){
+    //we count number of saved notes of his/her basic plan limit is 5
+    const ownerNotes= await NotesModel.find({ownerId})
+    if(ownerNotes && ownerNotes.length>4){
+      return res.status(501).json({ status:false,message: "You are A basic user, Basic users can't save more than 5 notes, concider upgrading your plan" });
+    }
+  }
+  if(checkOwnersPlan.plans==='Premium'){
+    //we count number of saved notes of his/her basic plan limit is 20
+    const ownerNotes= await NotesModel.find({ownerId})
+    if(ownerNotes && ownerNotes.length>19){
+      return res.status(501).json({ status:false,message: "You are a premimum user, Premium users can't save more than 20 notes, concider upgrading your plan to Business" });
+    }
+  }
+  if(checkOwnersPlan.plans==='Business'){
+    //we count number of saved notes of his/her basic plan limit is 60
+    const ownerNotes= await NotesModel.find({ownerId})
+    if(ownerNotes && ownerNotes.length>59){
+      return res.status(501).json({ status:false,message: "maximum notes limit exceeded" });
+    }
+  }
+}
   try {
     const newNotesModel = new NotesModel({ title, rawContent, ownerId });
     await newNotesModel.save();
@@ -69,12 +98,13 @@ exports.UpdateNotes = (req, res) => {
 };
 
 exports.SearchNotes = (req, res) => {
+  const ownerId = req.body.id;
   if (!req.query.search) {
     console.log("empty search");
     return res.status(200).json({ searchResults: [] });
   }
-  console.log(req.query.search);
-  NotesModel.find({ title: { $regex: `${req.query.search}`, $options: "i" } })
+  // console.log(req.query.search);
+  NotesModel.find({ title: { $regex: `${req.query.search}`, $options: "i" },ownerId })
     .limit(10)
     .then((resdata) => {
       // console.log(resdata);

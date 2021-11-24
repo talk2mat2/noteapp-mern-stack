@@ -1,24 +1,26 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const axios = require('axios')
+const axios = require("axios");
 const UserSchema = require("../models/userMoodel");
+const NotesModel = require("../models/NotesModel");
 
 function validateEmail(email) {
-  const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  const re =
+    /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
   return re.test(String(email).toLowerCase());
 }
-function getYear(){
-  const d = new Date()
-var amountOfYearsRequired = 1;
-const time=d.setFullYear(d.getFullYear() + amountOfYearsRequired);
-const year= new Date(time)
-return year
+function getYear() {
+  const d = new Date();
+  var amountOfYearsRequired = 1;
+  const time = d.setFullYear(d.getFullYear() + amountOfYearsRequired);
+  const year = new Date(time);
+  return year;
 }
-function getDays(days){
+function getDays(days) {
   var d = new Date();
-  const time=d.setDate(d.getDate() + days);
-  const times= new Date(time)
-  return times
+  const time = d.setDate(d.getDate() + days);
+  const times = new Date(time);
+  return times;
 }
 exports.Login = async function (req, res) {
   const Password = req.body.password;
@@ -245,69 +247,147 @@ exports.ConfirmPaymentReceived = async (req, res) => {
 //     });
 // };
 
-exports.handleUpgradePlans=async(req,res)=>{
-  const {plan,plan_date, payment_response} = req.body;
- 
-  if(!plan || !plan_date){
+exports.handleUpgradePlans = async (req, res) => {
+  const { plan, plan_date, payment_response } = req.body;
+
+  if (!plan || !plan_date) {
     return res.status(501).json({
-message:"plan  or plan method not provided",
-status:false,
-    })
+      message: "plan  or plan method not provided",
+      status: false,
+    });
   }
   //we validate to allow only three type of plan
-  if(plan!=='Basic'&& plan!=='Premium' &&plan!=='Business'){
-    
+  if (plan !== "Basic" && plan !== "Premium" && plan !== "Business") {
     return res.status(501).json({
-message:"invalid plan selected",
-status:false
-    })
+      message: "invalid plan selected",
+      status: false,
+    });
   }
- try{
-  const isPaid = await axios.get(
-    `https://api.flutterwave.com/v3/transactions/${payment_response.transaction_id}/verify`,
-    {
-      headers: { Authorization: `Bearer ${process.env.FLUTTER_SECRET_KEY}` },
+  try {
+    const isPaid = await axios.get(
+      `https://api.flutterwave.com/v3/transactions/${payment_response.transaction_id}/verify`,
+      {
+        headers: { Authorization: `Bearer ${process.env.FLUTTER_SECRET_KEY}` },
+      }
+    );
+    if (!isPaid.data.status === "success") {
+      return res
+        .status(501)
+        .json({
+          message: "payment wasnt successfull, try again",
+          status: false,
+        });
     }
-  );
-  if (!isPaid.data.status === "success") {
+
+    if (isPaid.data.status === "success") {
+      const expire_date =
+        plan_date === "month"
+          ? getDays(30)
+          : plan_date === "year"
+          ? getYear()
+          : "";
+      const today = new Date();
+      const params = {
+        plans: plan,
+        expire_date,
+        purchase_date: today,
+        payment_response,
+      };
+
+      UserSchema.findByIdAndUpdate(
+        { _id: req.body.id },
+        {
+          $set: params,
+        },
+        { new: true, useFindAndModify: false }
+      )
+        .select("-Password")
+        .then((user) => {
+          return res.status(200).json({
+            userdata: user,
+            status: true,
+          });
+        })
+        .catch((err) => {
+          console.log(err);
+          res.status(401).send({ err: "an error occured,unable to send" });
+        });
+    }
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+exports.GetUsers = async (req, res) => {
+  await UserSchema.find({})
+    .then((item) => {
+      return res
+        .status(200)
+        .json({ userData: item, status: true, mesage: "succes" });
+    })
+    .catch((err) => {
+      console.log(err);
+      return res
+        .status(501)
+        .json({
+          userData: { business: 0, premium: 0 },
+          status: false,
+          mesage: "not found",
+        });
+    });
+};
+
+exports.countUsers = async (req, res) => {
+  try {
+    const users = await UserSchema.estimatedDocumentCount();
+    const notes = await NotesModel.estimatedDocumentCount();
+  
+    return res
+      .status(200)
+      .json({
+        userData: { notes: notes, users: users },
+        status: true,
+        mesage: "succes",
+      });
+  } catch (err) {
     return res
       .status(501)
-      .json({ message: "payment wasnt successfull, try again",status:false });
+      .json({
+        userData: { notes: 0, users: 0 },
+        status: false,
+        mesage: "empty",
+      });
+  }
+};
+
+exports.AdminLogin = async function (req, res) {
+  const admin = { email: "admin@notes.com", password: "admin@notes.com" };
+  const Password = req.body.password;
+
+  const Email = req.body.email;
+  if (!Password || !Email) {
+    return res.status(404).send({ message: "password and email is required" });
   }
 
-  if (isPaid.data.status === "success") {
-  const expire_date=plan_date==="month"?getDays(30):plan_date==="year"?getYear():""
-  const today=new Date()
-const params={
-plans:plan,
-expire_date,
-purchase_date:today,
-payment_response
-}
+  if (!validateEmail(Email)) {
+    return res
+      .status(404)
+      .json({ message: "user with this account is not registered" });
+  }
 
-
- UserSchema.findByIdAndUpdate(
-  { _id: req.body.id },
-  {
-    $set: params,
-  },
-  { new: true, useFindAndModify: false }
-)
-  .select("-Password")
-  .then((user) => {
-    return res.status(200).json({
+  const match = admin.email === Email && admin.password === Password;
+  const user={firstName:"admin",lastName:"admin",Email:"admin@notes.com",isAAdmin:true}
+  if (!match) {
+    return res
+      .status(401)
+      .json({ message: "Error! , the entered email/password combination  is not correct." });
+  } else {
+  
+    return res.json({
       userdata: user,
-      status:true
+      token: jwt.sign({ user: user }, process.env.JWTKEY, {
+        expiresIn: "17520hr",
+      }),
     });
-  })
-  .catch((err) => {
-    console.log(err);
-    res.status(401).send({ err: "an error occured,unable to send" });
-  });
   }
- }
- catch(err){
-   console.log(err)
- }
-
-}
+};

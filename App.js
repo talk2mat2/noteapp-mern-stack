@@ -26,8 +26,10 @@ App.use("/plans",PlanRoutes)
 
 App.use("/privacy",Privacy)
 App.use("/aboutus",Aboutus)
-App.use(express.static('client'))
-App.use(express.static('admin'))
+// App.use(express.static('client'))
+// App.use(express.static('admin'))
+App.use(express.static(path.join(__dirname, "./client")));
+App.use(express.static(path.join(__dirname, "./admin")));
 
 // App.use("/users", UploadRoutes);
 App.use("/notes", NotesRoutes);
